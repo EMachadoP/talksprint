@@ -18,13 +18,13 @@ import {
 import { flushOfflineQueue, readOfflineQueue } from "@/lib/client/offline-store";
 
 const NAV_ITEMS = [
-  { href: "/today", label: "Hoje", icon: Compass },
-  { href: "/srs", label: "SRS Produtivo", icon: BookOpenCheck },
-  { href: "/conversation", label: "Conversação IA", icon: MessageSquareText },
-  { href: "/pronunciation", label: "Pronúncia PT-BR", icon: AudioWaveform },
-  { href: "/roadmap", label: "16 Semanas", icon: CalendarRange },
-  { href: "/dashboard", label: "Mastery & CEFR", icon: Gauge },
-  { href: "/privacy", label: "Privacidade", icon: ShieldCheck },
+  { href: "/today", label: "Hoje", shortLabel: "Hoje", icon: Compass },
+  { href: "/srs", label: "SRS Produtivo", shortLabel: "SRS", icon: BookOpenCheck },
+  { href: "/conversation", label: "Conversação IA", shortLabel: "Conversação", icon: MessageSquareText },
+  { href: "/pronunciation", label: "Pronúncia PT-BR", shortLabel: "Pronúncia", icon: AudioWaveform },
+  { href: "/roadmap", label: "16 Semanas", shortLabel: "16 Semanas", icon: CalendarRange },
+  { href: "/dashboard", label: "Mastery & CEFR", shortLabel: "Mastery", icon: Gauge },
+  { href: "/privacy", label: "Privacidade", shortLabel: "Privacidade", icon: ShieldCheck },
 ];
 
 export function AppShell({
@@ -118,7 +118,7 @@ export function AppShell({
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
-                    {item.label}
+                    {item.shortLabel}
                   </Link>
                 );
               })}
