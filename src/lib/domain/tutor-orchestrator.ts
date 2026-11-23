@@ -13,10 +13,7 @@ function sanitizeLearnerUtterance(raw: string): string {
     .slice(0, 800);
 }
 
-function detectSelectiveErrors(
-  utterance: string,
-  ctx: TutorPedagogicalContext
-): CorrectiveTarget[] {
+function detectSelectiveErrors(utterance: string): CorrectiveTarget[] {
   const targets: CorrectiveTarget[] = [];
   const lower = utterance.toLowerCase();
 
@@ -126,7 +123,7 @@ export async function generateTutorTurn(
 
   // Examiner mode: zero mid-task hints and zero mid-task corrections (feedback only at end)
   const feedbackTargets =
-    ctx.mode === "examiner" ? [] : detectSelectiveErrors(utterance, ctx);
+    ctx.mode === "examiner" ? [] : detectSelectiveErrors(utterance);
 
   const requiresSecondAttempt =
     ctx.mode !== "examiner" && feedbackTargets.length > 0 && !ctx.isSecondAttempt;
