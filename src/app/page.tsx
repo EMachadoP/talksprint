@@ -41,28 +41,34 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-[var(--border-hairline)] bg-[var(--bg-paper)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-baseline gap-2.5">
-            <span className="font-display text-2xl font-semibold tracking-tight">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-baseline gap-2.5 min-w-0">
+            <span className="font-display text-xl sm:text-2xl font-semibold tracking-tight shrink-0">
               TalkSprint
             </span>
-            <span className="font-mono-tech text-[10px] uppercase tracking-widest px-2 py-0.5 rounded bg-[var(--accent-emerald-soft)] text-[var(--accent-emerald)]">
+            <span className="hidden md:inline-block font-mono-tech text-[10px] uppercase tracking-widest px-2 py-0.5 rounded bg-[var(--accent-emerald-soft)] text-[var(--accent-emerald)] whitespace-nowrap">
               Conversation-First · PT-BR → EN
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Link
               href="/today"
-              className="text-sm font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
+              className="hidden sm:inline-block text-sm font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] whitespace-nowrap"
             >
               Abrir Estúdio
             </Link>
             <Link
-              href="/onboarding"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-paper)] text-sm font-medium hover:bg-[var(--accent-emerald)] transition-colors"
+              href="/login"
+              className="text-xs sm:text-sm font-medium px-3 py-2 rounded-lg border border-[var(--border-hairline)] text-[var(--ink-primary)] hover:bg-[var(--bg-elevated)] transition-colors whitespace-nowrap"
             >
-              Fazer Placement
-              <ArrowRight className="w-4 h-4" />
+              Entrar
+            </Link>
+            <Link
+              href="/onboarding"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-paper)] text-xs sm:text-sm font-medium hover:bg-[var(--accent-emerald)] transition-colors whitespace-nowrap"
+            >
+              Placement
+              <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Link>
           </div>
         </div>
@@ -70,14 +76,14 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* Asymmetric editorial hero */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 pb-16 grid lg:grid-cols-12 gap-10 items-start animate-studio-in">
-          <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-xs font-mono-tech text-[var(--ink-secondary)]">
-              <Target className="w-3.5 h-3.5 text-[var(--accent-emerald)]" />
-              Sem promessas mágicas de 5 minutos/dia · Baseado em SLA & CEFR
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-14 sm:pb-16 grid lg:grid-cols-12 gap-8 lg:gap-10 items-start animate-studio-in">
+          <div className="lg:col-span-7 space-y-5 sm:space-y-6 min-w-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-hairline)] text-[11px] sm:text-xs font-mono-tech text-[var(--ink-secondary)] max-w-full">
+              <Target className="w-3.5 h-3.5 text-[var(--accent-emerald)] shrink-0" />
+              <span>Sem promessas mágicas de 5 min/dia · Baseado em SLA & CEFR</span>
             </div>
 
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-semibold leading-[1.06] tracking-tight text-[var(--ink-primary)]">
+            <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-semibold leading-[1.08] tracking-tight text-[var(--ink-primary)]">
               Desempenho conversacional{" "}
               <span className="italic text-[var(--accent-emerald)]">CEFR B1</span>{" "}
               em 16 semanas — medido por transferência real.

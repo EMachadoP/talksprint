@@ -6,15 +6,15 @@
   --bg-card: #fcfbf8;
   --ink-primary: #141918;
   --ink-secondary: #353f3c;
-  --ink-muted: #5c6662;
+  --ink-muted: #505956;
   --border-hairline: #dad3c5;
   --border-strong: #141918;
-  --accent-emerald: #0e6b50;
-  --accent-emerald-hover: #0a533e;
+  --accent-emerald: #0d6249;
+  --accent-emerald-hover: #094a37;
   --accent-emerald-soft: #e2f1ec;
-  --accent-terracotta: #c84b31;
+  --accent-terracotta: #b9422a;
   --accent-terracotta-soft: #faeae5;
-  --accent-ochre: #9a6b16;
+  --accent-ochre: #875c10;
   --accent-ochre-soft: #f7efdc;
 }
 
@@ -30,6 +30,7 @@ body {
   color: var(--ink-primary);
   font-family: var(--font-jakarta), sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 /* Subtle editorial paper grain */
@@ -39,9 +40,16 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 50;
-  opacity: 0.025;
+  opacity: 0.022;
   background-image: radial-gradient(#141918 0.6px, transparent 0.6px);
   background-size: 16px 16px;
+}
+
+/* WCAG 2.2 high-visibility keyboard focus indicator */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-emerald);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 .font-display {
@@ -57,10 +65,19 @@ body::before {
   border: 1px solid var(--border-hairline);
   border-radius: 14px;
   box-shadow: 0 1px 0 rgba(20, 25, 24, 0.04);
+  min-width: 0;
 }
 
 .editorial-rule {
   border-top: 1px solid var(--border-hairline);
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @keyframes studioFadeUp {
@@ -76,4 +93,10 @@ body::before {
 
 .animate-studio-in {
   animation: studioFadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-studio-in {
+    animation: none;
+  }
 }

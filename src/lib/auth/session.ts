@@ -5,11 +5,12 @@ export const SESSION_COOKIE_NAME = "talksprint_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 days
 
 function getAuthSecret(): string {
-  return (
-    process.env.AUTH_SECRET ||
-    process.env.GEMINI_API_KEY ||
-    "talksprint-dev-local-secret-change-in-prod"
-  );
+  const secret = process.env.AUTH_SECRET?.trim();
+  if (secret && secret.length >= 16) return secret;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("AUTH_SECRET must be configured in production.");
+  }
+  return "talksprint-dev-only-ephemeral-secret";
 }
 
 export function hashPassword(password: string): string {

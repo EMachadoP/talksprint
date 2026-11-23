@@ -69,7 +69,13 @@ export default function ConversationPage() {
         .webkitSpeechRecognition;
 
     if (!SpeechRec) {
-      setInput("Yesterday I go to reception and the room no have hot water.");
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "tutor",
+          text: "Your browser doesn't support live speech dictation here — you can type your answer directly below.",
+        },
+      ]);
       return;
     }
 
@@ -294,17 +300,18 @@ export default function ConversationPage() {
 
           <form
             onSubmit={sendTurn}
-            className="pt-4 border-t border-[var(--border-hairline)] flex items-center gap-2"
+            className="pt-4 border-t border-[var(--border-hairline)] flex items-center gap-2 min-w-0"
           >
             <button
               type="button"
               onClick={toggleVoiceInput}
-              className={`p-3 rounded-xl border transition-colors ${
+              className={`p-2.5 sm:p-3 rounded-xl border shrink-0 transition-colors ${
                 listening
                   ? "bg-[var(--accent-terracotta)] text-white border-[var(--accent-terracotta)]"
                   : "border-[var(--border-hairline)] bg-[var(--bg-paper)] hover:bg-[var(--bg-elevated)]"
               }`}
               title="Falar pelo microfone (Web Speech API)"
+              aria-label="Falar pelo microfone"
             >
               {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
@@ -314,18 +321,18 @@ export default function ConversationPage() {
               onChange={(e) => setInput(e.target.value)}
               placeholder={
                 needsSecondAttempt
-                  ? "Segunda tentativa: reformule aplicando a correção..."
-                  : "Responda em inglês (ou clique no microfone)..."
+                  ? "Segunda tentativa: reformule..."
+                  : "Responda em inglês..."
               }
-              className="flex-1 px-4 py-2.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-paper)] text-sm focus:outline-none focus:border-[var(--accent-emerald)]"
+              className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-paper)] text-sm focus:outline-none focus:border-[var(--accent-emerald)]"
             />
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--accent-emerald)] text-white text-sm font-medium hover:bg-[var(--accent-emerald-hover)] disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl bg-[var(--accent-emerald)] text-white text-sm font-medium shrink-0 hover:bg-[var(--accent-emerald-hover)] disabled:opacity-60"
             >
               <Send className="w-4 h-4" />
-              Enviar
+              <span className="hidden sm:inline">Enviar</span>
             </button>
           </form>
         </section>

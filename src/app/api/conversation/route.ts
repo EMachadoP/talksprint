@@ -4,7 +4,7 @@ import { CONVERSATION_MISSIONS } from "@/lib/domain/curriculum";
 import { generateTutorTurn } from "@/lib/domain/tutor-orchestrator";
 import { loadLearner, persistLearner } from "@/lib/db/repository";
 import { getCurrentSession } from "@/lib/auth/session";
-import { checkRateLimit } from "@/lib/security/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
 
 const conversationSchema = z.object({
   utterance: z.string().trim().min(1).max(800),
@@ -15,7 +15,7 @@ const conversationSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const limit = checkRateLimit("api:conversation", 45, 60_000);
+  const limit = checkRateLimit(`api:conversation:${getClientIp(req)}`, 45, 60_000);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Limite de requisições atingido. Aguarde alguns segundos." },

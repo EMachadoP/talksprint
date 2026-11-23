@@ -1,5 +1,11 @@
 const buckets = new Map<string, { count: number; resetAt: number }>();
 
+export function getClientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim();
+  return req.headers.get("x-real-ip")?.trim() || "local";
+}
+
 export function checkRateLimit(
   key: string,
   maxRequests = 60,

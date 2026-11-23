@@ -22,6 +22,7 @@ export default function SrsPage() {
   const [nodes, setNodes] = useState<RankedNode[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [mutScore, setMutScore] = useState(0);
+  const [cefrLevel, setCefrLevel] = useState("A0");
   const [answer, setAnswer] = useState("");
   const [showHint, setShowHint] = useState(false);
   const [novelContext, setNovelContext] = useState(false);
@@ -33,7 +34,8 @@ export default function SrsPage() {
       .then((r) => r.json())
       .then((d) => {
         setNodes(d.rankedNodes ?? []);
-        setMutScore(d.mutScore ?? 0.33);
+        setMutScore(d.mutScore ?? 0);
+        setCefrLevel(d.learner?.currentCefr ?? "A0");
         startedAt.current = Date.now();
       })
       .catch(() => null);
@@ -232,7 +234,7 @@ export default function SrsPage() {
         </div>
 
         <div className="lg:col-span-4 space-y-5">
-          <MutGauge mutScore={mutScore} cefrLevel="A1+" targetCefr="B1" />
+          <MutGauge mutScore={mutScore} cefrLevel={cefrLevel} targetCefr="B1" />
 
           <div className="editorial-card p-5 space-y-3 text-xs">
             <h3 className="font-display text-base font-semibold">

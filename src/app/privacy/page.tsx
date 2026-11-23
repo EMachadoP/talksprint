@@ -68,25 +68,25 @@ export default function PrivacyPage() {
           </div>
 
           <dl className="divide-y divide-[var(--border-hairline)] text-sm">
-            <div className="py-3 flex justify-between gap-4">
+            <div className="py-3 flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4">
               <dt className="text-[var(--ink-muted)]">ID Pseudônimo de Aprendizagem</dt>
-              <dd className="font-mono-tech text-xs">{info?.pseudonymId ?? "..."}</dd>
+              <dd className="font-mono-tech text-xs break-all sm:text-right">{info?.pseudonymId ?? "..."}</dd>
             </div>
-            <div className="py-3 flex justify-between gap-4">
+            <div className="py-3 flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4">
               <dt className="text-[var(--ink-muted)]">Separação PII ≠ Eventos ≠ Áudio</dt>
-              <dd className="font-mono-tech text-xs text-[var(--accent-emerald)]">
+              <dd className="font-mono-tech text-xs text-[var(--accent-emerald)] sm:text-right">
                 Ativa (schema relacional segregado)
               </dd>
             </div>
-            <div className="py-3 flex justify-between gap-4">
+            <div className="py-3 flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4">
               <dt className="text-[var(--ink-muted)]">Política de Áudio Bruto</dt>
-              <dd className="text-right text-xs font-medium">
+              <dd className="sm:text-right text-xs font-medium">
                 {info?.dataInventory.rawAudioPolicy ?? "Extração e descarte imediato"}
               </dd>
             </div>
-            <div className="py-3 flex justify-between gap-4">
+            <div className="py-3 flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4">
               <dt className="text-[var(--ink-muted)]">Chamadas Humanas / Peer</dt>
-              <dd className="font-mono-tech text-xs">Não gravadas por padrão</dd>
+              <dd className="font-mono-tech text-xs sm:text-right">Não gravadas por padrão</dd>
             </div>
           </dl>
 

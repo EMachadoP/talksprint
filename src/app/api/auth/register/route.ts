@@ -7,6 +7,8 @@ import {
   signSessionToken,
 } from "@/lib/auth/session";
 
+import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
+
 const registerSchema = z.object({
   displayName: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(120),
@@ -14,6 +16,13 @@ const registerSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const limit = checkRateLimit(`api:auth:register:${getClientIp(req)}`, 10, 60_000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Muitas tentativas de cadastro. Aguarde 1 minuto." },
+      { status: 429 }
+    );
+  }
   try {
     const json = await req.json();
     const parsed = registerSchema.safeParse(json);

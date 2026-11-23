@@ -3,26 +3,29 @@
 ## Visão Geral do Projeto
 **TalkSprint** é um aplicativo web intensivo (*conversation-first, mastery-driven*) projetado para levar falantes de português (com personalização contrastiva explícita para PT-BR) ao desempenho conversacional funcional equivalente a **CEFR B1** em **16 semanas**, seguindo um plano intensivo calibrado ao nível inicial e à carga horária real.
 
-## Estado Atual (Produção com Gemini 2.5 Flash + Auth Real + PostgreSQL Ready)
-- **Data da sessão:** 2026-11-23
+## Estado Atual (100% Operacional em Produção — Auditado Visualmente & Hardened)
+- **Data da última atualização:** 2026-11-23
+- **URL de Produção (Vercel):** https://talksprint.vercel.app
 - **Repositório GitHub:** https://github.com/EMachadoP/talksprint (branch `main`)
-- **Deploy em Produção (Vercel):** https://talksprint.vercel.app
-- **Secrets configurados na Vercel (Production):** `GEMINI_API_KEY` (ativo — `gemini-2.5-flash`) e `AUTH_SECRET` (ativo).
-- **Neon PostgreSQL (Project ID `winter-river-14413089`):** Schema e migrations (`0001_init.sql` + `0002_auth_and_sessions.sql`) e repositório `pg` prontos; falta apenas autenticar o `neonctl` ou fornecer a `DATABASE_URL` / `NEON_API_KEY` para aplicar `npm run db:migrate` e ativar `DATABASE_URL` na Vercel.
+- **Banco de Dados (Neon PostgreSQL — `winter-river-14413089`):** Conectado em produção (`storage: "neon-postgresql"`), migrations `0001_init.sql` e `0002_auth_and_sessions.sql` aplicadas e validadas.
+- **IA & Áudio (Gemini API):** Ativa em produção (`aiProvider: "gemini-3.1-flash-lite"`, fallback `gemini-3-flash-preview`).
+- **Secrets de Produção (Vercel):** `DATABASE_URL`, `GEMINI_API_KEY` e `AUTH_SECRET` configurados exclusivamente em Production.
 
-## O Que Foi Feito Nesta Sessão (Eliminação de Mocks & Integrações Reais)
-1. **Gemini 2.5 Flash Real (`src/lib/ai/gemini.ts`):**
-   - Integrado ao `Tutor Orchestrator` (`/api/conversation`) para conversação real calibrada ao CEFR nos 3 modos (`coach`, `partner`, `examiner`) com feedback seletivo (máx. 2 erros) e Segunda Tentativa.
-   - Integrado ao `Pronunciation Analyzer` (`/api/pronunciation`) com suporte multimodal a **áudio real gravado pelo microfone (`MediaRecorder` → base64)** e descarte imediato do áudio bruto após extração (LGPD).
-   - Integrado ao `CEFR 8D Checkpoint Evaluator` (`/api/checkpoint`) com saída JSON estruturada nas 8 dimensões CEFR.
-2. **Autenticação Real (`src/lib/auth/session.ts`, `/login`, `/api/auth/*`):**
-   - Cadastro e login reais com hash `crypto.scrypt` + salt, sessões assinadas com HMAC-SHA256 em cookies `HttpOnly` (`SameSite=Lax`, `Secure` em produção).
-   - Migration `db/migrations/0002_auth_and_sessions.sql` adicionando `password_hash`, `user_sessions`, `conversation_minutes` e `onboarding_completed`.
-3. **PostgreSQL Repository Real (`src/lib/db/postgres-repository.ts` & `src/lib/db/repository.ts`):**
-   - Implementação completa com `pg.Pool` (SSL Neon) para `users` (PII), `learner_profiles`, `competency_nodes`, `learning_events` (idempotente) e `cefr_checkpoints`.
-4. **Remoção Total de Dados Mockados:**
-   - Todo aluno novo começa com `MUT = 0%`, `0 min` de conversação, `retention7DayPercent = 0%` (calculado dos `REVIEW_COMPLETED` reais dos últimos 7 dias) e 10 chunks reais das Semanas 1–4 sem domínio pré-marcado.
-   - Inputs limpos em `/onboarding`, `/pronunciation` (com gravador real de microfone) e `/dashboard`.
+## Auditoria Visual, Responsiva, Acessibilidade e Segurança (2026-11-23)
+### Problemas Comprovados e Corrigidos
+1. **Overflow horizontal em `360px` e `390px` (Landing, Hoje, Conversação, Privacidade):**
+   - Cabeçalho da Landing (`src/app/page.tsx`) e do `AppShell` (`src/components/AppShell.tsx`) excediam 360px/390px, cortando botões (`Placement`, `Entrar`) e empurrando títulos e cards para fora da tela. Corrigido com header mobile compacto, badges `hidden sm:inline-block`, `min-w-0` e `whitespace-nowrap`.
+2. **Estouro de navegação em `1024px` (`today-1024.png`):**
+   - A barra inline de 7 links em `lg:flex` (1024px) quebrava em duas linhas e empurrava os botões de status/auth para fora da margem direita. Movido o menu inline para `xl:flex` (`1280px+`) e mantida barra horizontal limpa (`no-scrollbar`) para `< 1280px`.
+3. **Acessibilidade WCAG 2.2:**
+   - Adicionados `:focus-visible` global de alto contraste, link "Pular para o conteúdo principal", `aria-current="page"` nos links ativos, `role="progressbar"` no `MutGauge`, suporte a `prefers-reduced-motion` e contraste reforçado em `--ink-muted`, `--accent-emerald` e `--accent-terracotta`.
+4. **Remoção de resquícios de fallback/mock:**
+   - Removido fallback hardcoded de ditado em `src/app/conversation/page.tsx` e fallback `0.33`/`A1+` em `src/app/srs/page.tsx`.
+5. **Segurança & Hardening:**
+   - Removido reuso de `GEMINI_API_KEY` como fallback de `AUTH_SECRET` em `src/lib/auth/session.ts` (agora exige `AUTH_SECRET` em produção).
+   - Rate-limiting atualizado para chaveamento por IP (`getClientIp`) e estendido para `/api/auth/login` (15 req/min) e `/api/auth/register` (10 req/min) contra brute-force.
+   - `AbortController` adicionado ao `fetch("/api/auth/me")` no `AppShell`.
 
-## Pendência Única para Persistência Permanente no Neon
-- Fornecer a `DATABASE_URL` do projeto Neon `winter-river-14413089` (ou uma `NEON_API_KEY` para consulta via `neonctl`) → gravar em `vercel env add DATABASE_URL production` → executar `npm run db:migrate` → redeploy.
+## Riscos Residuais & Próximos Passos
+- Rate limiting atual é em memória por instância serverless; em escala maior, migrar para Redis/Upstash.
+- Expandir banco de conteúdo com pacotes completos das Semanas 5–16 e camada de Peer Exchange / Tutor Humano.

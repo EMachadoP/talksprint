@@ -7,12 +7,21 @@ import {
   signSessionToken,
 } from "@/lib/auth/session";
 
+import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
+
 const loginSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
 });
 
 export async function POST(req: Request) {
+  const limit = checkRateLimit(`api:auth:login:${getClientIp(req)}`, 15, 60_000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Muitas tentativas de login. Aguarde 1 minuto." },
+      { status: 429 }
+    );
+  }
   try {
     const json = await req.json();
     const parsed = loginSchema.safeParse(json);

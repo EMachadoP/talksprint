@@ -43,10 +43,11 @@ export function AppShell({
   const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     setOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
     setPendingCount(readOfflineQueue().length);
 
-    fetch("/api/auth/me")
+    fetch("/api/auth/me", { signal: controller.signal })
       .then((r) => r.json())
       .then((d) => {
         if (d.authenticated && d.user?.displayName) {
@@ -64,6 +65,7 @@ export function AppShell({
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     return () => {
+      controller.abort();
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
@@ -78,19 +80,29 @@ export function AppShell({
 
   return (
     <div className="min-h-screen flex flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-[var(--ink-primary)] focus:text-[var(--bg-paper)] focus:text-sm"
+      >
+        Pular para o conteúdo principal
+      </a>
+
       <header className="sticky top-0 z-40 border-b border-[var(--border-hairline)] bg-[var(--bg-paper)]/95 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-baseline gap-2 group">
-              <span className="font-display text-xl font-semibold tracking-tight text-[var(--ink-primary)]">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <Link href="/" className="flex items-baseline gap-2 shrink-0 group">
+              <span className="font-display text-lg sm:text-xl font-semibold tracking-tight text-[var(--ink-primary)]">
                 TalkSprint
               </span>
-              <span className="font-mono-tech text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--accent-emerald-soft)] text-[var(--accent-emerald)]">
+              <span className="hidden sm:inline-block font-mono-tech text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--accent-emerald-soft)] text-[var(--accent-emerald)] whitespace-nowrap">
                 16W · B1
               </span>
             </Link>
 
-            <nav className="hidden lg:flex items-center gap-1" aria-label="Navegação principal">
+            <nav
+              className="hidden xl:flex items-center gap-1"
+              aria-label="Navegação principal"
+            >
               {NAV_ITEMS.map((item) => {
                 const active = pathname === item.href;
                 const Icon = item.icon;
@@ -98,13 +110,14 @@ export function AppShell({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                    aria-current={active ? "page" : undefined}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                       active
-                        ? "bg-[var(--ink-primary)] text-[var(--bg-paper)] font-medium"
+                        ? "bg-[var(--ink-primary)] text-[var(--bg-paper)]"
                         : "text-[var(--ink-secondary)] hover:bg-[var(--bg-elevated)]"
                     }`}
                   >
-                    <Icon className="w-3.5 h-3.5" />
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
                     {item.label}
                   </Link>
                 );
@@ -112,21 +125,22 @@ export function AppShell({
             </nav>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={handleSync}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] text-xs font-mono-tech text-[var(--ink-secondary)] hover:border-[var(--ink-primary)] transition-colors"
+              className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-full border border-[var(--border-hairline)] bg-[var(--bg-card)] text-xs font-mono-tech text-[var(--ink-secondary)] hover:border-[var(--ink-primary)] transition-colors"
               title="Sincronizar fila offline-first"
+              aria-label={online ? "Status online. Clique para sincronizar" : "Status offline"}
             >
               {online ? (
-                <Wifi className="w-3.5 h-3.5 text-[var(--accent-emerald)]" />
+                <Wifi className="w-3.5 h-3.5 text-[var(--accent-emerald)] shrink-0" />
               ) : (
-                <WifiOff className="w-3.5 h-3.5 text-[var(--accent-terracotta)]" />
+                <WifiOff className="w-3.5 h-3.5 text-[var(--accent-terracotta)] shrink-0" />
               )}
-              <span>{online ? "Online" : "Offline"}</span>
+              <span className="hidden sm:inline">{online ? "Online" : "Offline"}</span>
               {pendingCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-[var(--accent-terracotta-soft)] text-[var(--accent-terracotta)]">
+                <span className="px-1.5 rounded-full bg-[var(--accent-terracotta-soft)] text-[var(--accent-terracotta)]">
                   {pendingCount}
                 </span>
               )}
@@ -135,7 +149,7 @@ export function AppShell({
 
             <Link
               href="/onboarding"
-              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border-hairline)] text-[var(--ink-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+              className="hidden sm:inline-flex items-center text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border-hairline)] text-[var(--ink-primary)] hover:bg-[var(--bg-elevated)] transition-colors whitespace-nowrap"
             >
               Placement
             </Link>
@@ -148,7 +162,7 @@ export function AppShell({
                   setUserName(null);
                   window.location.href = "/login";
                 }}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-paper)] hover:bg-[var(--accent-terracotta)] transition-colors"
+                className="text-xs font-medium px-2.5 sm:px-3 py-1.5 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-paper)] hover:bg-[var(--accent-terracotta)] transition-colors whitespace-nowrap max-w-[130px] truncate"
                 title="Sair da conta"
               >
                 {userName} · Sair
@@ -156,7 +170,7 @@ export function AppShell({
             ) : (
               <Link
                 href="/login"
-                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-paper)] hover:bg-[var(--accent-emerald)] transition-colors"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-paper)] hover:bg-[var(--accent-emerald)] transition-colors whitespace-nowrap"
               >
                 Entrar
               </Link>
@@ -164,38 +178,56 @@ export function AppShell({
           </div>
         </div>
 
-        {/* Mobile quick nav */}
-        <nav className="lg:hidden flex items-center gap-1 overflow-x-auto px-4 pb-2.5">
+        {/* Tablet & Mobile compact horizontal nav (< 1280px) */}
+        <nav
+          className="xl:hidden flex items-center gap-1.5 overflow-x-auto no-scrollbar px-3 sm:px-6 pb-2.5"
+          aria-label="Navegação secundária"
+        >
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`shrink-0 px-2.5 py-1 rounded-md text-xs ${
+                aria-current={active ? "page" : undefined}
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap transition-colors ${
                   active
                     ? "bg-[var(--ink-primary)] text-[var(--bg-paper)] font-medium"
-                    : "bg-[var(--bg-elevated)] text-[var(--ink-secondary)]"
+                    : "bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
                 }`}
               >
                 {item.label}
               </Link>
             );
           })}
+          <Link
+            href="/onboarding"
+            aria-current={pathname === "/onboarding" ? "page" : undefined}
+            className={`sm:hidden shrink-0 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap ${
+              pathname === "/onboarding"
+                ? "bg-[var(--accent-emerald)] text-white font-medium"
+                : "bg-[var(--accent-emerald-soft)] text-[var(--accent-emerald)] font-medium"
+            }`}
+          >
+            Placement
+          </Link>
         </nav>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
+      <main
+        id="main-content"
+        className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8 min-w-0"
+      >
         {(title || subtitle) && (
-          <div className="mb-8 pb-6 border-b border-[var(--border-hairline)] flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
+          <div className="mb-6 sm:mb-8 pb-5 sm:pb-6 border-b border-[var(--border-hairline)] flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="min-w-0">
               {title && (
-                <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--ink-primary)]">
+                <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-[var(--ink-primary)] break-words">
                   {title}
                 </h1>
               )}
               {subtitle && (
-                <p className="mt-2 text-sm sm:text-base text-[var(--ink-muted)] max-w-2xl">
+                <p className="mt-2 text-sm sm:text-base text-[var(--ink-muted)] max-w-2xl leading-relaxed">
                   {subtitle}
                 </p>
               )}
