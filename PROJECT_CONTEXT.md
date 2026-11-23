@@ -26,8 +26,8 @@
    - Rate-limiting atualizado para chaveamento por IP (`getClientIp`) e estendido para `/api/auth/login` (15 req/min) e `/api/auth/register` (10 req/min) contra brute-force.
    - `AbortController` adicionado ao `fetch("/api/auth/me")` no `AppShell`.
 
-## Auditoria de Segurança Profunda (`security/audit-2026-11-23` — Pendente de autorização para merge/push/deploy)
-- **Branch:** `security/audit-2026-11-23` (não enviada nem deployada sem autorização explícita).
+## Auditoria de Segurança Profunda (`security/audit-2026-11-23` — Mesclada em `main` e Deployada em Produção)
+- **Branch:** `security/audit-2026-11-23` mesclada em `main` e publicada em produção (`https://talksprint.vercel.app`).
 - **Achados corrigidos e retestados (35/35 testes passando):**
   - `SEC-001` (Alta): Autenticação obrigatória (`401`) nas rotas de IA e mutação (`/api/conversation`, `/api/pronunciation`, `/api/checkpoint`, `/api/srs/review`, `/api/sync`, `/api/onboarding`, `/api/privacy`) + rate-limit por usuário/IP + allowlist de `audioMimeType` (cap 2 MB).
   - `SEC-002` (Alta): `ssl: { rejectUnauthorized: true }` restaurado no pool PostgreSQL Neon (`src/lib/db/postgres-repository.ts`).
