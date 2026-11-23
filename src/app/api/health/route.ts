@@ -7,7 +7,7 @@ export async function GET() {
     status: "ok",
     service: "talksprint",
     storage: hasDatabaseUrl() ? "neon-postgresql" : "ephemeral-fallback",
-    aiProvider: hasGeminiKey() ? "gemini-2.5-flash" : "deterministic-fallback",
+    aiProvider: hasGeminiKey() ? "gemini-3.1-flash-lite" : "deterministic-fallback",
     timestamp: new Date().toISOString(),
   });
 }
