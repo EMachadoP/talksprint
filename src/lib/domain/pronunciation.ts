@@ -1,3 +1,4 @@
+import { callGeminiJson, hasGeminiKey } from "@/lib/ai/gemini";
 import type {
   PortugueseVariety,
   PronunciationAnalysisResult,
@@ -134,4 +135,72 @@ export function analyzePronunciation(
     privacyNotice,
     shouldScheduleSrs: priorityIssues.length > 0 || intelligibilityScore < 80,
   };
+}
+
+export async function analyzePronunciationWithGemini(input: {
+  targetPhrase: string;
+  transcript?: string;
+  audioBase64?: string;
+  audioMimeType?: string;
+  portugueseVariety: PortugueseVariety;
+  portfolioOptIn: boolean;
+}): Promise<PronunciationAnalysisResult> {
+  if (hasGeminiKey() && process.env.VITEST !== "true") {
+    const systemPrompt = [
+      "You are a specialist in English pronunciation intelligibility for Portuguese speakers.",
+      `Portuguese variety: ${input.portugueseVariety}.`,
+      `Target phrase: "${input.targetPhrase}".`,
+      "Focus ONLY on communicative intelligibility (not native accent): final consonant epenthesis (e.g. adding /i/ after final /k,t,d,p/), -ed/-s endings, dental fricatives /θ ð/, vowel contrasts, lexical stress.",
+      "Return at most 2 priorityIssues. Explanations must be concise and in Portuguese.",
+      'Return strict JSON: {"transcript": string, "intelligibilityScore": number (0-100), "priorityIssues": [{"targetId": "final_consonant_epenthesis"|"consonant_clusters"|"ed_s_endings"|"dental_fricatives_th"|"vowel_contrasts"|"lexical_stress_rhythm"|"connected_speech", "word": string, "observedForm": string, "ipaTarget": string, "severity": "blocks_meaning"|"target_recurring"|"low_priority", "explanationPt": string, "minimalPair": [string, string], "retryPrompt": string}]}.',
+    ].join("\n");
+
+    const parts = [];
+    if (input.audioBase64 && input.audioMimeType) {
+      parts.push({
+        inlineData: {
+          mimeType: input.audioMimeType,
+          data: input.audioBase64,
+        },
+      });
+      parts.push({
+        text: `Listen to the attached learner audio attempting to say: "${input.targetPhrase}". Transcribe faithfully (noting any epenthetic vowel or dropped endings) and evaluate intelligibility.`,
+      });
+    } else {
+      parts.push({
+        text: `Learner transcript: "${input.transcript ?? ""}" for target phrase "${input.targetPhrase}".`,
+      });
+    }
+
+    const ai = await callGeminiJson<{
+      transcript?: string;
+      intelligibilityScore?: number;
+      priorityIssues?: PronunciationIssue[];
+    }>(systemPrompt, parts, 0.2);
+
+    if (ai && typeof ai.intelligibilityScore === "number") {
+      const priorityIssues = (Array.isArray(ai.priorityIssues) ? ai.priorityIssues : []).slice(0, 2);
+      const rawAudioRetained = Boolean(input.portfolioOptIn);
+      const privacyNotice = rawAudioRetained
+        ? "Portfólio de Pronúncia ativado (opt-in): este trecho foi retido exclusivamente para sua comparação longitudinal de 16 semanas."
+        : "Política LGPD Extração e Descarte: áudio bruto processado em memória e descartado imediatamente após extração das características fonéticas.";
+
+      return {
+        targetPhrase: input.targetPhrase,
+        transcript: ai.transcript ?? input.transcript ?? "",
+        intelligibilityScore: Math.max(0, Math.min(100, Math.round(ai.intelligibilityScore))),
+        priorityIssues,
+        rawAudioRetained,
+        privacyNotice,
+        shouldScheduleSrs: priorityIssues.length > 0 || ai.intelligibilityScore < 80,
+      };
+    }
+  }
+
+  return analyzePronunciation({
+    targetPhrase: input.targetPhrase,
+    transcript: input.transcript ?? "",
+    portugueseVariety: input.portugueseVariety,
+    portfolioOptIn: input.portfolioOptIn,
+  });
 }

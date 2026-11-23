@@ -22,25 +22,23 @@ const SITUATIONS: Array<{ id: PrioritySituation; label: string }> = [
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [displayName, setDisplayName] = useState("Marina");
+  const [displayName, setDisplayName] = useState("");
   const [portugueseVariety, setPortugueseVariety] =
     useState<PortugueseVariety>("pt-BR");
   const [selfReportedLevel, setSelfReportedLevel] = useState<
     "A0" | "A1" | "A2" | "B1"
   >("A1");
-  const [weeklyHoursAvailable, setWeeklyHoursAvailable] = useState(18);
+  const [weeklyHoursAvailable, setWeeklyHoursAvailable] = useState(16);
   const [speakingComfort, setSpeakingComfort] =
-    useState<SpeakingComfort>("medium");
+    useState<SpeakingComfort>("low");
   const [prioritySituations, setPrioritySituations] = useState<
     PrioritySituation[]
-  >(["travel", "work_meetings", "restaurants_services"]);
+  >(["travel", "work_meetings"]);
 
-  // Mini adaptive placement inputs
-  const [recognitionChoice, setRecognitionChoice] = useState("b");
-  const [listeningChoice, setListeningChoice] = useState("a");
-  const [speakingSample, setSpeakingSample] = useState(
-    "Yesterday I workee with my team and I want change the hotel room."
-  );
+  // Mini adaptive placement inputs (clean, no mocked answers)
+  const [recognitionChoice, setRecognitionChoice] = useState("");
+  const [listeningChoice, setListeningChoice] = useState("");
+  const [speakingSample, setSpeakingSample] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

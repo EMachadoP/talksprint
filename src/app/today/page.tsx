@@ -58,8 +58,8 @@ export default function TodayPage() {
         {/* Left main sequence */}
         <div className="lg:col-span-8 space-y-6">
           <MutGauge
-            mutScore={data?.mutScore ?? 0.33}
-            cefrLevel={data?.learner.currentCefr ?? "A1"}
+            mutScore={data?.mutScore ?? 0}
+            cefrLevel={data?.learner.currentCefr ?? "A0"}
             targetCefr={data?.learner.targetCefr ?? "B1"}
           />
 

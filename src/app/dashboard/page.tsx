@@ -18,11 +18,10 @@ const DIMENSION_LABELS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const [mutScore, setMutScore] = useState(0.33);
-  const [cefr, setCefr] = useState("A1");
-  const [responseText, setResponseText] = useState(
-    "Excuse me, there seems to be a mistake with my reservation. Yesterday I booked a table for four people, could you check if another table is available?"
-  );
+  const [mutScore, setMutScore] = useState(0);
+  const [cefr, setCefr] = useState("A0");
+  const [retention7d, setRetention7d] = useState(0);
+  const [responseText, setResponseText] = useState("");
   const [evaluation, setEvaluation] = useState<CheckpointEvaluation | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -30,8 +29,9 @@ export default function DashboardPage() {
     fetch("/api/today")
       .then((r) => r.json())
       .then((d) => {
-        setMutScore(d.mutScore ?? 0.33);
-        setCefr(d.learner?.currentCefr ?? "A1");
+        setMutScore(d.mutScore ?? 0);
+        setCefr(d.learner?.currentCefr ?? "A0");
+        setRetention7d(d.retention7DayPercent ?? 0);
         if (d.learner?.checkpoints?.[0]) {
           setEvaluation(d.learner.checkpoints[0]);
         }
@@ -93,8 +93,10 @@ export default function DashboardPage() {
 
             <textarea
               rows={3}
+              required
               value={responseText}
               onChange={(e) => setResponseText(e.target.value)}
+              placeholder="Escreva em inglês como você resolveria o erro na reserva do restaurante..."
               className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-hairline)] bg-[var(--bg-paper)] text-sm"
             />
 
@@ -158,7 +160,7 @@ export default function DashboardPage() {
               <p>
                 <strong>Você agora consegue:</strong>{" "}
                 {evaluation?.weeklyCapabilitySummary.canDoNow ??
-                  "Pedir e corrigir um pedido em restaurante sem ajuda."}
+                  "Conclua seu primeiro checkpoint acima para gerar evidência real de capacidade."}
               </p>
             </div>
 
@@ -166,40 +168,40 @@ export default function DashboardPage() {
               <div className="py-2.5 flex justify-between">
                 <dt className="text-[var(--ink-muted)]">Listening</dt>
                 <dd className="font-mono-tech font-semibold">
-                  {evaluation?.weeklyCapabilitySummary.listeningLevel ?? "A2 inicial"}
+                  {evaluation?.weeklyCapabilitySummary.listeningLevel ?? "Aguardando avaliação"}
                 </dd>
               </div>
               <div className="py-2.5 flex justify-between">
                 <dt className="text-[var(--ink-muted)]">Interação</dt>
                 <dd className="font-mono-tech font-semibold">
-                  {evaluation?.weeklyCapabilitySummary.interactionLevel ?? "A1+"}
+                  {evaluation?.weeklyCapabilitySummary.interactionLevel ?? "Aguardando avaliação"}
                 </dd>
               </div>
               <div className="py-2.5 flex justify-between">
                 <dt className="text-[var(--ink-muted)]">Pronúncia</dt>
                 <dd className="font-mono-tech font-semibold">
                   {evaluation?.weeklyCapabilitySummary.pronunciationTargetsMastered ??
-                    "3 de 5 alvos dominados"}
+                    "Sem análises ainda"}
                 </dd>
               </div>
               <div className="py-2.5 flex justify-between">
                 <dt className="text-[var(--ink-muted)]">Retenção após 7 dias</dt>
                 <dd className="font-mono-tech font-semibold text-[var(--accent-emerald)]">
-                  {evaluation?.weeklyCapabilitySummary.retention7DayPercent ?? 84}%
+                  {evaluation?.weeklyCapabilitySummary.retention7DayPercent ?? retention7d}%
                 </dd>
               </div>
               <div className="py-2.5 flex justify-between gap-4">
                 <dt className="text-[var(--ink-muted)]">Maior lacuna</dt>
                 <dd className="text-right font-medium text-[var(--accent-terracotta)]">
                   {evaluation?.weeklyCapabilitySummary.biggestGap ??
-                    "Perguntas no passado"}
+                    "Ainda não diagnosticada"}
                 </dd>
               </div>
               <div className="py-2.5 flex justify-between gap-4">
                 <dt className="text-[var(--ink-muted)]">Próxima missão</dt>
                 <dd className="text-right font-medium">
                   {evaluation?.weeklyCapabilitySummary.nextMission ??
-                    "Contar uma experiência de viagem"}
+                    "Realizar o Placement e iniciar a Semana 1"}
                 </dd>
               </div>
             </dl>

@@ -1,9 +1,23 @@
+import { callGeminiJson, hasGeminiKey } from "@/lib/ai/gemini";
 import { CONVERSATION_MISSIONS } from "./curriculum";
 import type {
   CefrLevel,
   CefrRubricDimensions,
   CheckpointEvaluation,
+  LearningEvent,
 } from "./types";
+
+export function computeReal7DayRetention(events: LearningEvent[]): number {
+  const cutoff = Date.now() - 7 * 86400 * 1000;
+  const recentReviews = events.filter(
+    (e) =>
+      e.eventType === "REVIEW_COMPLETED" &&
+      new Date(e.occurredAt).getTime() >= cutoff
+  );
+  if (recentReviews.length === 0) return 0;
+  const passed = recentReviews.filter((e) => Boolean(e.payload?.correct)).length;
+  return Math.round((passed / recentReviews.length) * 100);
+}
 
 export interface CheckpointInput {
   weekNumber: number;
@@ -138,6 +152,52 @@ export function evaluateCheckpoint(input: CheckpointInput): CheckpointEvaluation
         input.weekNumber < 16
           ? `Avançar para a Semana ${input.weekNumber + 1} com foco em ${dimensionLabels[lowestKey]}.`
           : "Consolidar bateria final B1 conversacional.",
+    },
+  };
+}
+
+export async function evaluateCheckpointWithGemini(
+  input: CheckpointInput
+): Promise<CheckpointEvaluation> {
+  const baseline = evaluateCheckpoint(input);
+  if (!hasGeminiKey() || process.env.VITEST === "true") {
+    return baseline;
+  }
+
+  const systemPrompt = [
+    "You are a certified CEFR oral/written assessor evaluating a novel transfer task (separate from ASR).",
+    `Week: ${input.weekNumber}. Novel task: "${baseline.novelTaskTitle}".`,
+    "Score each of the 8 CEFR dimensions from 0 to 100 honestly based ONLY on the learner's actual response.",
+    'Return strict JSON: {"dimensions": {"taskCompletion": number, "comprehensibility": number, "interaction": number, "fluency": number, "accuracy": number, "range": number, "pronunciation": number, "listening": number}, "canDoNow": string (Portuguese), "biggestGap": string (Portuguese), "nextMission": string (Portuguese)}.',
+  ].join("\n");
+
+  const ai = await callGeminiJson<{
+    dimensions?: CefrRubricDimensions;
+    canDoNow?: string;
+    biggestGap?: string;
+    nextMission?: string;
+  }>(systemPrompt, [{ text: `Learner response: "${input.userResponseText}"` }], 0.2);
+
+  if (!ai?.dimensions) return baseline;
+
+  const vals = Object.values(ai.dimensions);
+  if (vals.length !== 8 || vals.some((v) => typeof v !== "number")) {
+    return baseline;
+  }
+
+  const overallScore = Math.round(vals.reduce((a, b) => a + b, 0) / 8);
+  const estimatedCefr = estimateCefrFromScore(overallScore);
+
+  return {
+    ...baseline,
+    dimensions: ai.dimensions,
+    overallScore,
+    estimatedCefr,
+    weeklyCapabilitySummary: {
+      ...baseline.weeklyCapabilitySummary,
+      canDoNow: ai.canDoNow || baseline.weeklyCapabilitySummary.canDoNow,
+      biggestGap: ai.biggestGap || baseline.weeklyCapabilitySummary.biggestGap,
+      nextMission: ai.nextMission || baseline.weeklyCapabilitySummary.nextMission,
     },
   };
 }

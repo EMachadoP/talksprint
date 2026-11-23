@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { mergeIdempotentEvents } from "@/lib/domain/sync";
-import { getLearnerState, saveLearnerState } from "@/lib/db/repository";
+import { loadLearner, persistLearner } from "@/lib/db/repository";
+import { getCurrentSession } from "@/lib/auth/session";
 
 const syncSchema = z.object({
   events: z
@@ -34,14 +35,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const learner = getLearnerState();
+    const session = await getCurrentSession();
+    const learner = await loadLearner(session?.pseudonymId);
     const incoming = parsed.data.events.map((e) => ({
       ...e,
       pseudonymId: learner.pseudonymId,
     }));
 
     const merged = mergeIdempotentEvents(learner.events, incoming);
-    saveLearnerState({ ...learner, events: merged.events });
+    await persistLearner({ ...learner, events: merged.events }, session?.pseudonymId);
 
     return NextResponse.json({
       acceptedCount: merged.acceptedCount,

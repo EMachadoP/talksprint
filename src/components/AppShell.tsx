@@ -40,10 +40,20 @@ export function AppShell({
   const [online, setOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     setOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
     setPendingCount(readOfflineQueue().length);
+
+    fetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user?.displayName) {
+          setUserName(d.user.displayName);
+        }
+      })
+      .catch(() => null);
 
     const onOnline = () => {
       setOnline(true);
@@ -125,10 +135,32 @@ export function AppShell({
 
             <Link
               href="/onboarding"
-              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--ink-primary)] text-[var(--ink-primary)] hover:bg-[var(--ink-primary)] hover:text-[var(--bg-paper)] transition-colors"
+              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-[var(--border-hairline)] text-[var(--ink-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
             >
               Placement
             </Link>
+
+            {userName ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetch("/api/auth/logout", { method: "POST" });
+                  setUserName(null);
+                  window.location.href = "/login";
+                }}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-paper)] hover:bg-[var(--accent-terracotta)] transition-colors"
+                title="Sair da conta"
+              >
+                {userName} · Sair
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--ink-primary)] text-[var(--bg-paper)] hover:bg-[var(--accent-emerald)] transition-colors"
+              >
+                Entrar
+              </Link>
+            )}
           </div>
         </div>
 

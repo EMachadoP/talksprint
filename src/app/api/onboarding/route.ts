@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { evaluatePlacement } from "@/lib/domain/placement";
-import { getLearnerState, saveLearnerState } from "@/lib/db/repository";
+import { loadLearner, persistLearner } from "@/lib/db/repository";
+import { getCurrentSession } from "@/lib/auth/session";
 
 const onboardingSchema = z.object({
   displayName: z.string().trim().min(1).max(80),
@@ -39,23 +40,27 @@ export async function POST(req: Request) {
       );
     }
 
+    const session = await getCurrentSession();
     const placement = evaluatePlacement(parsed.data);
-    const current = getLearnerState();
+    const current = await loadLearner(session?.pseudonymId);
 
-    const updated = saveLearnerState({
-      ...current,
-      displayName: parsed.data.displayName,
-      portugueseVariety: parsed.data.portugueseVariety,
-      initialCefr: placement.diagnosedCefr,
-      currentCefr: placement.diagnosedCefr,
-      targetCefr: placement.recommendedTargetCefr,
-      weeklyHoursAvailable: parsed.data.weeklyHoursAvailable,
-      recommendedWeeklyHours: placement.recommendedWeeklyHours,
-      speakingComfort: parsed.data.speakingComfort,
-      prioritySituations: parsed.data.prioritySituations,
-      diagnosedPhoneticTargets: placement.diagnosedPhoneticTargets,
-      currentWeek: 1,
-    });
+    const updated = await persistLearner(
+      {
+        ...current,
+        displayName: parsed.data.displayName,
+        portugueseVariety: parsed.data.portugueseVariety,
+        initialCefr: placement.diagnosedCefr,
+        currentCefr: placement.diagnosedCefr,
+        targetCefr: placement.recommendedTargetCefr,
+        weeklyHoursAvailable: parsed.data.weeklyHoursAvailable,
+        recommendedWeeklyHours: placement.recommendedWeeklyHours,
+        speakingComfort: parsed.data.speakingComfort,
+        prioritySituations: parsed.data.prioritySituations,
+        diagnosedPhoneticTargets: placement.diagnosedPhoneticTargets,
+        currentWeek: 1,
+      },
+      session?.pseudonymId
+    );
 
     return NextResponse.json({
       learner: updated,

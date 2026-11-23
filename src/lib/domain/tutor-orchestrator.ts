@@ -1,3 +1,4 @@
+import { callGeminiJson, hasGeminiKey } from "@/lib/ai/gemini";
 import type {
   CorrectiveTarget,
   TutorPedagogicalContext,
@@ -121,7 +122,60 @@ export async function generateTutorTurn(
   const wordCount = utterance.split(/\s+/).filter(Boolean).length;
   const communicationBreakdown = wordCount < 2;
 
-  // Examiner mode: zero mid-task hints and zero mid-task corrections (feedback only at end)
+  // Use real Gemini 2.5 Flash when GEMINI_API_KEY is configured and not in Vitest unit test mode
+  if (hasGeminiKey() && process.env.VITEST !== "true") {
+    const systemPrompt = [
+      "You are TalkSprint's pedagogical English conversation partner for Portuguese speakers.",
+      `Mode: ${ctx.mode} (coach = brief PT help allowed; partner = stay in English + selective post-turn feedback; examiner = ZERO help and ZERO feedbackTargets during the task).`,
+      `Learner CEFR level: ${ctx.learnerLevel}. Portuguese variety: ${ctx.portugueseVariety}.`,
+      `Task goal: ${ctx.taskGoal}. Target structures: ${ctx.targetStructures.join(", ")}.`,
+      `Turn number: ${ctx.turnNumber}. Is second attempt: ${Boolean(ctx.isSecondAttempt)}.`,
+      "Rules:",
+      "- Keep your English reply natural, concise (2-3 sentences), calibrated to the learner's CEFR level.",
+      "- Never return more than 2 items in feedbackTargets.",
+      "- In examiner mode, feedbackTargets MUST be [] and helpInPortuguese MUST be null.",
+      "- In partner mode, helpInPortuguese MUST be null.",
+      "- Explanations inside feedbackTargets must be concise and written in Portuguese.",
+      'Return strict JSON with keys: {"reply": string, "interruptedForCommunicationBreakdown": boolean, "feedbackTargets": [{"originalSnippet": string, "suggestedForm": string, "severity": "blocks_meaning"|"target_recurring"|"low_priority", "explanation": string, "reformulationPrompt": string, "srsChunkCandidate": string}], "helpInPortuguese": string|null}.',
+    ].join("\n");
+
+    const ai = await callGeminiJson<{
+      reply?: string;
+      interruptedForCommunicationBreakdown?: boolean;
+      feedbackTargets?: CorrectiveTarget[];
+      helpInPortuguese?: string | null;
+    }>(systemPrompt, [{ text: `Learner said: "${utterance}"` }], 0.45);
+
+    if (ai?.reply) {
+      const feedbackTargets =
+        ctx.mode === "examiner"
+          ? []
+          : (Array.isArray(ai.feedbackTargets) ? ai.feedbackTargets : []).slice(0, 2);
+      const requiresSecondAttempt =
+        ctx.mode !== "examiner" && feedbackTargets.length > 0 && !ctx.isSecondAttempt;
+      const secondAttemptPrompt = requiresSecondAttempt
+        ? `Segunda tentativa: reformule sua resposta aplicando "${feedbackTargets[0].suggestedForm}" e envie novamente para automatizar.`
+        : null;
+
+      return {
+        reply: ai.reply,
+        interruptedForCommunicationBreakdown: Boolean(
+          ai.interruptedForCommunicationBreakdown
+        ),
+        feedbackTargets,
+        requiresSecondAttempt,
+        secondAttemptPrompt,
+        helpInPortuguese: ctx.mode === "coach" ? (ai.helpInPortuguese ?? null) : null,
+        providerUsed: "gemini",
+        taskProgressPercent: Math.min(
+          100,
+          ctx.turnNumber * 25 + (ctx.isSecondAttempt ? 15 : 0)
+        ),
+      };
+    }
+  }
+
+  // Deterministic fallback (used in offline tests or when no LLM key is present)
   const feedbackTargets =
     ctx.mode === "examiner" ? [] : detectSelectiveErrors(utterance);
 

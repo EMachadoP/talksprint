@@ -21,7 +21,7 @@ const STAGE_LABELS: Record<string, string> = {
 export default function SrsPage() {
   const [nodes, setNodes] = useState<RankedNode[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [mutScore, setMutScore] = useState(0.33);
+  const [mutScore, setMutScore] = useState(0);
   const [answer, setAnswer] = useState("");
   const [showHint, setShowHint] = useState(false);
   const [novelContext, setNovelContext] = useState(false);

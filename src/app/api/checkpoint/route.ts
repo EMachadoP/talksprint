@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { evaluateCheckpoint } from "@/lib/domain/assessment";
+import {
+  computeReal7DayRetention,
+  evaluateCheckpointWithGemini,
+} from "@/lib/domain/assessment";
 import { computeMutScore } from "@/lib/domain/adaptive-engine";
-import { getLearnerState, saveLearnerState } from "@/lib/db/repository";
+import { loadLearner, persistLearner } from "@/lib/db/repository";
+import { getCurrentSession } from "@/lib/auth/session";
 
 const checkpointSchema = z.object({
   weekNumber: z.number().int().min(1).max(16),
@@ -22,24 +26,30 @@ export async function POST(req: Request) {
       );
     }
 
-    const learner = getLearnerState();
+    const session = await getCurrentSession();
+    const learner = await loadLearner(session?.pseudonymId);
     const mutScore = computeMutScore(learner.nodes);
-    const evaluation = evaluateCheckpoint({
+    const retention7DayPercent = computeReal7DayRetention(learner.events);
+
+    const evaluation = await evaluateCheckpointWithGemini({
       weekNumber: parsed.data.weekNumber,
       trainedTaskId: parsed.data.trainedTaskId,
       userResponseText: parsed.data.userResponseText,
       listeningCorrectRatio: parsed.data.listeningCorrectRatio,
       mutScore,
-      retention7DayPercent: 84,
-      pronunciationMasteredCount: Math.max(1, 5 - learner.diagnosedPhoneticTargets.length),
+      retention7DayPercent,
+      pronunciationMasteredCount: Math.max(0, 5 - learner.diagnosedPhoneticTargets.length),
       pronunciationTotalCount: 5,
     });
 
-    saveLearnerState({
-      ...learner,
-      currentCefr: evaluation.estimatedCefr,
-      checkpoints: [evaluation, ...learner.checkpoints].slice(0, 16),
-    });
+    await persistLearner(
+      {
+        ...learner,
+        currentCefr: evaluation.estimatedCefr,
+        checkpoints: [evaluation, ...learner.checkpoints].slice(0, 16),
+      },
+      session?.pseudonymId
+    );
 
     return NextResponse.json(evaluation);
   } catch {

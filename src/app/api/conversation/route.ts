@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CONVERSATION_MISSIONS } from "@/lib/domain/curriculum";
 import { generateTutorTurn } from "@/lib/domain/tutor-orchestrator";
-import { getLearnerState, saveLearnerState } from "@/lib/db/repository";
+import { loadLearner, persistLearner } from "@/lib/db/repository";
+import { getCurrentSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 
 const conversationSchema = z.object({
@@ -32,7 +33,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const learner = getLearnerState();
+    const session = await getCurrentSession();
+    const learner = await loadLearner(session?.pseudonymId);
     const mission =
       CONVERSATION_MISSIONS.find((m) => m.id === parsed.data.taskId) ??
       CONVERSATION_MISSIONS[0];
@@ -50,10 +52,13 @@ export async function POST(req: Request) {
       isSecondAttempt: parsed.data.isSecondAttempt,
     });
 
-    saveLearnerState({
-      ...learner,
-      conversationMinutes: learner.conversationMinutes + 2,
-    });
+    await persistLearner(
+      {
+        ...learner,
+        conversationMinutes: learner.conversationMinutes + 2,
+      },
+      session?.pseudonymId
+    );
 
     return NextResponse.json(response);
   } catch {
