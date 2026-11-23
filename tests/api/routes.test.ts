@@ -1,10 +1,36 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { GET as healthGet } from "@/app/api/health/route";
+import { POST as registerPost } from "@/app/api/auth/register/route";
 import { POST as onboardingPost } from "@/app/api/onboarding/route";
 import { POST as srsReviewPost } from "@/app/api/srs/review/route";
 import { POST as conversationPost } from "@/app/api/conversation/route";
 import { POST as pronunciationPost } from "@/app/api/pronunciation/route";
 import { POST as syncPost } from "@/app/api/sync/route";
+
+let authCookie = "";
+
+beforeAll(async () => {
+  const regReq = new Request("http://localhost/api/auth/register", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-forwarded-for": "10.0.0.1" },
+    body: JSON.stringify({
+      displayName: "Marina",
+      email: `routes-test-${Date.now()}@example.com`,
+      password: "ValidPassword123!",
+    }),
+  });
+  const regRes = await registerPost(regReq);
+  const setCookie = regRes.headers.get("set-cookie") ?? "";
+  authCookie = setCookie.split(";")[0];
+});
+
+function authedHeaders() {
+  return {
+    "content-type": "application/json",
+    cookie: authCookie,
+    "x-forwarded-for": "10.0.0.1",
+  };
+}
 
 describe("TalkSprint API Route Handlers", () => {
   it("GET /api/health returns ok status", async () => {
@@ -17,7 +43,7 @@ describe("TalkSprint API Route Handlers", () => {
   it("POST /api/onboarding validates input with Zod and creates learner plan", async () => {
     const badReq = new Request("http://localhost/api/onboarding", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: authedHeaders(),
       body: JSON.stringify({ displayName: "" }),
     });
     const badRes = await onboardingPost(badReq);
@@ -25,7 +51,7 @@ describe("TalkSprint API Route Handlers", () => {
 
     const goodReq = new Request("http://localhost/api/onboarding", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: authedHeaders(),
       body: JSON.stringify({
         displayName: "Marina",
         portugueseVariety: "pt-BR",
@@ -50,7 +76,7 @@ describe("TalkSprint API Route Handlers", () => {
   it("POST /api/srs/review updates mastery and returns recalculated MUT", async () => {
     const req = new Request("http://localhost/api/srs/review", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: authedHeaders(),
       body: JSON.stringify({
         nodeId: "chunk-hotel-problem",
         correct: true,
@@ -69,7 +95,7 @@ describe("TalkSprint API Route Handlers", () => {
   it("POST /api/conversation returns selective feedback and second attempt prompt", async () => {
     const req = new Request("http://localhost/api/conversation", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: authedHeaders(),
       body: JSON.stringify({
         utterance: "Yesterday I go to reception and room no have water.",
         mode: "partner",
@@ -87,7 +113,7 @@ describe("TalkSprint API Route Handlers", () => {
   it("POST /api/pronunciation enforces LGPD audio discard by default", async () => {
     const req = new Request("http://localhost/api/pronunciation", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: authedHeaders(),
       body: JSON.stringify({
         targetPhrase: "I work with a marketing team.",
         transcript: "I workee with a marketing team",
@@ -110,7 +136,7 @@ describe("TalkSprint API Route Handlers", () => {
 
     const req1 = new Request("http://localhost/api/sync", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: authedHeaders(),
       body: JSON.stringify({ events: [event] }),
     });
     const res1 = await syncPost(req1);
@@ -120,7 +146,7 @@ describe("TalkSprint API Route Handlers", () => {
 
     const req2 = new Request("http://localhost/api/sync", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: authedHeaders(),
       body: JSON.stringify({ events: [event] }),
     });
     const res2 = await syncPost(req2);

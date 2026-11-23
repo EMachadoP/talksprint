@@ -1,9 +1,38 @@
+import { z } from "zod";
 import { callGeminiJson, hasGeminiKey } from "@/lib/ai/gemini";
 import type {
   PortugueseVariety,
   PronunciationAnalysisResult,
   PronunciationIssue,
 } from "./types";
+
+const geminiPronunciationSchema = z.object({
+  transcript: z.string().max(400),
+  intelligibilityScore: z.number().min(0).max(100),
+  priorityIssues: z
+    .array(
+      z.object({
+        targetId: z.enum([
+          "final_consonant_epenthesis",
+          "consonant_clusters",
+          "ed_s_endings",
+          "dental_fricatives_th",
+          "vowel_contrasts",
+          "lexical_stress_rhythm",
+          "connected_speech",
+        ]),
+        word: z.string().max(60),
+        observedForm: z.string().max(80),
+        ipaTarget: z.string().max(60),
+        severity: z.enum(["blocks_meaning", "target_recurring", "low_priority"]),
+        explanationPt: z.string().max(400),
+        minimalPair: z.tuple([z.string().max(60), z.string().max(60)]),
+        retryPrompt: z.string().max(300),
+      })
+    )
+    .max(2)
+    .default([]),
+});
 
 export interface PronunciationAnalyzeInput {
   targetPhrase: string;
@@ -172,14 +201,12 @@ export async function analyzePronunciationWithGemini(input: {
       });
     }
 
-    const ai = await callGeminiJson<{
-      transcript?: string;
-      intelligibilityScore?: number;
-      priorityIssues?: PronunciationIssue[];
-    }>(systemPrompt, parts, 0.2);
+    const aiRaw = await callGeminiJson<unknown>(systemPrompt, parts, 0.2);
+    const parsedAi = geminiPronunciationSchema.safeParse(aiRaw);
 
-    if (ai && typeof ai.intelligibilityScore === "number") {
-      const priorityIssues = (Array.isArray(ai.priorityIssues) ? ai.priorityIssues : []).slice(0, 2);
+    if (parsedAi.success) {
+      const ai = parsedAi.data;
+      const priorityIssues = ai.priorityIssues.slice(0, 2);
       const rawAudioRetained = Boolean(input.portfolioOptIn);
       const privacyNotice = rawAudioRetained
         ? "Portfólio de Pronúncia ativado (opt-in): este trecho foi retido exclusivamente para sua comparação longitudinal de 16 semanas."
@@ -187,8 +214,8 @@ export async function analyzePronunciationWithGemini(input: {
 
       return {
         targetPhrase: input.targetPhrase,
-        transcript: ai.transcript ?? input.transcript ?? "",
-        intelligibilityScore: Math.max(0, Math.min(100, Math.round(ai.intelligibilityScore))),
+        transcript: ai.transcript || input.transcript || "",
+        intelligibilityScore: Math.round(ai.intelligibilityScore),
         priorityIssues,
         rawAudioRetained,
         privacyNotice,

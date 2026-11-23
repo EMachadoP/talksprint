@@ -1,8 +1,16 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
+import {
+  hasDatabaseUrl,
+  pgCreateSession,
+  pgIsSessionActive,
+  pgRevokeSession,
+} from "@/lib/db/postgres-repository";
 
 export const SESSION_COOKIE_NAME = "talksprint_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 days
+
+const revokedMemoryHashes = new Set<string>();
 
 function getAuthSecret(): string {
   const secret = process.env.AUTH_SECRET?.trim();
@@ -28,7 +36,12 @@ export function verifyPassword(password: string, storedHash: string): boolean {
   return crypto.timingSafeEqual(derived, storedBuf);
 }
 
+export function hashSessionToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 export interface SessionPayload {
+  jti: string;
   userId: string;
   pseudonymId: string;
   email: string;
@@ -36,9 +49,12 @@ export interface SessionPayload {
   exp: number;
 }
 
-export function signSessionToken(payload: Omit<SessionPayload, "exp">): string {
+export function signSessionToken(
+  payload: Omit<SessionPayload, "exp" | "jti">
+): string {
   const full: SessionPayload = {
     ...payload,
+    jti: crypto.randomUUID(),
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
   };
   const data = Buffer.from(JSON.stringify(full)).toString("base64url");
@@ -68,7 +84,7 @@ export function verifySessionToken(token: string): SessionPayload | null {
     const parsed = JSON.parse(
       Buffer.from(data, "base64url").toString("utf8")
     ) as SessionPayload;
-    if (!parsed.exp || parsed.exp < Math.floor(Date.now() / 1000)) {
+    if (!parsed.exp || !parsed.jti || parsed.exp < Math.floor(Date.now() / 1000)) {
       return null;
     }
     return parsed;
@@ -77,16 +93,71 @@ export function verifySessionToken(token: string): SessionPayload | null {
   }
 }
 
-export async function getCurrentSession(): Promise<SessionPayload | null> {
+export async function registerActiveSession(
+  token: string,
+  payload: Pick<SessionPayload, "userId" | "pseudonymId">
+): Promise<void> {
+  const tokenHash = hashSessionToken(token);
+  revokedMemoryHashes.delete(tokenHash);
+  if (hasDatabaseUrl()) {
+    await pgCreateSession({
+      tokenHash,
+      userId: payload.userId,
+      pseudonymId: payload.pseudonymId,
+      expiresAt: new Date(Date.now() + SESSION_TTL_SECONDS * 1000),
+    });
+  }
+}
+
+export async function revokeActiveSession(token: string | null | undefined): Promise<void> {
+  if (!token) return;
+  const tokenHash = hashSessionToken(token);
+  revokedMemoryHashes.add(tokenHash);
+  if (hasDatabaseUrl()) {
+    await pgRevokeSession(tokenHash);
+  }
+}
+
+function extractCookieTokenFromHeader(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(";")) {
+    const [rawKey, ...rest] = part.trim().split("=");
+    if (rawKey === SESSION_COOKIE_NAME) {
+      return decodeURIComponent(rest.join("="));
+    }
+  }
+  return null;
+}
+
+export async function getRawSessionToken(req?: Request): Promise<string | null> {
+  if (req) {
+    const fromHeader = extractCookieTokenFromHeader(req.headers.get("cookie"));
+    if (fromHeader) return fromHeader;
+  }
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-    if (!token) return null;
-    return verifySessionToken(token);
+    return cookieStore.get(SESSION_COOKIE_NAME)?.value ?? null;
   } catch {
-    // Outside Next.js request context (e.g. unit tests)
     return null;
   }
+}
+
+export async function getCurrentSession(req?: Request): Promise<SessionPayload | null> {
+  const token = await getRawSessionToken(req);
+  if (!token) return null;
+
+  const parsed = verifySessionToken(token);
+  if (!parsed) return null;
+
+  const tokenHash = hashSessionToken(token);
+  if (revokedMemoryHashes.has(tokenHash)) return null;
+
+  if (hasDatabaseUrl()) {
+    const active = await pgIsSessionActive(tokenHash);
+    if (!active) return null;
+  }
+
+  return parsed;
 }
 
 export function buildSessionCookieOptions() {

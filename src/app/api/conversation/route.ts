@@ -5,17 +5,35 @@ import { generateTutorTurn } from "@/lib/domain/tutor-orchestrator";
 import { loadLearner, persistLearner } from "@/lib/db/repository";
 import { getCurrentSession } from "@/lib/auth/session";
 import { checkRateLimit, getClientIp } from "@/lib/security/rate-limit";
+import { verifyCsrfOrigin } from "@/lib/security/csrf";
 
 const conversationSchema = z.object({
   utterance: z.string().trim().min(1).max(800),
   mode: z.enum(["coach", "partner", "examiner"]).default("partner"),
-  taskId: z.string().min(1),
+  taskId: z.string().min(1).max(80),
   turnNumber: z.number().int().min(1).max(50).default(1),
   isSecondAttempt: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
-  const limit = checkRateLimit(`api:conversation:${getClientIp(req)}`, 45, 60_000);
+  const csrf = verifyCsrfOrigin(req);
+  if (!csrf.ok) {
+    return NextResponse.json({ error: "Requisição cross-site bloqueada." }, { status: 403 });
+  }
+
+  const session = await getCurrentSession(req);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Autenticação obrigatória para conversação com IA." },
+      { status: 401 }
+    );
+  }
+
+  const limit = checkRateLimit(
+    `api:conversation:${session.pseudonymId}:${getClientIp(req)}`,
+    30,
+    60_000
+  );
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Limite de requisições atingido. Aguarde alguns segundos." },
@@ -33,8 +51,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const session = await getCurrentSession();
-    const learner = await loadLearner(session?.pseudonymId);
+    const learner = await loadLearner(session.pseudonymId);
     const mission =
       CONVERSATION_MISSIONS.find((m) => m.id === parsed.data.taskId) ??
       CONVERSATION_MISSIONS[0];
@@ -57,7 +74,7 @@ export async function POST(req: Request) {
         ...learner,
         conversationMinutes: learner.conversationMinutes + 2,
       },
-      session?.pseudonymId
+      session.pseudonymId
     );
 
     return NextResponse.json(response);
