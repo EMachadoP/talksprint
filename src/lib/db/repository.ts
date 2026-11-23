@@ -103,6 +103,9 @@ export async function registerUserAccount(params: {
   return { user, learner };
 }
 
+// Pre-computed dummy scrypt hash to prevent email enumeration via timing side-channel
+const DUMMY_PASSWORD_HASH = hashPassword("talksprint-constant-time-dummy-value");
+
 export async function authenticateUserAccount(params: {
   email: string;
   password: string;
@@ -112,7 +115,10 @@ export async function authenticateUserAccount(params: {
     ? await pgFindUserByEmail(normalizedEmail)
     : getUserStore().get(normalizedEmail) ?? null;
 
-  if (!user || !verifyPassword(params.password, user.passwordHash)) {
+  const hashToCheck = user?.passwordHash ?? DUMMY_PASSWORD_HASH;
+  const passwordValid = verifyPassword(params.password, hashToCheck);
+
+  if (!user || !passwordValid) {
     return null;
   }
   return user;

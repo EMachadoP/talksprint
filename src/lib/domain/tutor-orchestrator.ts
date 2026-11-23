@@ -1,9 +1,30 @@
+import { z } from "zod";
 import { callGeminiJson, hasGeminiKey } from "@/lib/ai/gemini";
 import type {
   CorrectiveTarget,
   TutorPedagogicalContext,
   TutorTurnResponse,
 } from "./types";
+
+const geminiTutorOutputSchema = z.object({
+  reply: z.string().trim().min(1).max(1200),
+  interruptedForCommunicationBreakdown: z.boolean().optional().default(false),
+  feedbackTargets: z
+    .array(
+      z.object({
+        originalSnippet: z.string().max(200),
+        suggestedForm: z.string().max(250),
+        severity: z.enum(["blocks_meaning", "target_recurring", "low_priority"]),
+        explanation: z.string().max(400),
+        reformulationPrompt: z.string().max(250),
+        srsChunkCandidate: z.string().max(200),
+      })
+    )
+    .max(2)
+    .optional()
+    .default([]),
+  helpInPortuguese: z.string().max(400).nullable().optional().default(null),
+});
 
 function sanitizeLearnerUtterance(raw: string): string {
   // Neutralize prompt-injection style control directives while preserving natural speech
@@ -139,18 +160,16 @@ export async function generateTutorTurn(
       'Return strict JSON with keys: {"reply": string, "interruptedForCommunicationBreakdown": boolean, "feedbackTargets": [{"originalSnippet": string, "suggestedForm": string, "severity": "blocks_meaning"|"target_recurring"|"low_priority", "explanation": string, "reformulationPrompt": string, "srsChunkCandidate": string}], "helpInPortuguese": string|null}.',
     ].join("\n");
 
-    const ai = await callGeminiJson<{
-      reply?: string;
-      interruptedForCommunicationBreakdown?: boolean;
-      feedbackTargets?: CorrectiveTarget[];
-      helpInPortuguese?: string | null;
-    }>(systemPrompt, [{ text: `Learner said: "${utterance}"` }], 0.45);
+    const aiRaw = await callGeminiJson<unknown>(
+      systemPrompt,
+      [{ text: `Learner said: "${utterance}"` }],
+      0.45
+    );
+    const parsedAi = geminiTutorOutputSchema.safeParse(aiRaw);
 
-    if (ai?.reply) {
-      const feedbackTargets =
-        ctx.mode === "examiner"
-          ? []
-          : (Array.isArray(ai.feedbackTargets) ? ai.feedbackTargets : []).slice(0, 2);
+    if (parsedAi.success) {
+      const ai = parsedAi.data;
+      const feedbackTargets = ctx.mode === "examiner" ? [] : ai.feedbackTargets.slice(0, 2);
       const requiresSecondAttempt =
         ctx.mode !== "examiner" && feedbackTargets.length > 0 && !ctx.isSecondAttempt;
       const secondAttemptPrompt = requiresSecondAttempt
@@ -159,13 +178,11 @@ export async function generateTutorTurn(
 
       return {
         reply: ai.reply,
-        interruptedForCommunicationBreakdown: Boolean(
-          ai.interruptedForCommunicationBreakdown
-        ),
+        interruptedForCommunicationBreakdown: ai.interruptedForCommunicationBreakdown,
         feedbackTargets,
         requiresSecondAttempt,
         secondAttemptPrompt,
-        helpInPortuguese: ctx.mode === "coach" ? (ai.helpInPortuguese ?? null) : null,
+        helpInPortuguese: ctx.mode === "coach" ? ai.helpInPortuguese : null,
         providerUsed: "gemini",
         taskProgressPercent: Math.min(
           100,

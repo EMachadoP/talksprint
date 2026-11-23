@@ -26,6 +26,20 @@
    - Rate-limiting atualizado para chaveamento por IP (`getClientIp`) e estendido para `/api/auth/login` (15 req/min) e `/api/auth/register` (10 req/min) contra brute-force.
    - `AbortController` adicionado ao `fetch("/api/auth/me")` no `AppShell`.
 
+## Auditoria de Segurança Profunda (`security/audit-2026-11-23` — Pendente de autorização para merge/push/deploy)
+- **Branch:** `security/audit-2026-11-23` (não enviada nem deployada sem autorização explícita).
+- **Achados corrigidos e retestados (35/35 testes passando):**
+  - `SEC-001` (Alta): Autenticação obrigatória (`401`) nas rotas de IA e mutação (`/api/conversation`, `/api/pronunciation`, `/api/checkpoint`, `/api/srs/review`, `/api/sync`, `/api/onboarding`, `/api/privacy`) + rate-limit por usuário/IP + allowlist de `audioMimeType` (cap 2 MB).
+  - `SEC-002` (Alta): `ssl: { rejectUnauthorized: true }` restaurado no pool PostgreSQL Neon (`src/lib/db/postgres-repository.ts`).
+  - `SEC-003` (Média): `Cache-Control: no-store, private, max-age=0` em `/api/*`, HSTS e remoção de `'unsafe-eval'` da CSP em produção (`next.config.ts`).
+  - `SEC-004` (Média): Proteção CSRF (`verifyCsrfOrigin` validando `Sec-Fetch-Site` e `Origin`/`Host`) em todas as rotas mutáveis (`src/lib/security/csrf.ts`).
+  - `SEC-005` (Média): Proteção contra timing side-channel no login (hash `scrypt` dummy em tempo constante) + rate-limit por conta além do IP.
+  - `SEC-006` (Média): Validação estrita com schemas `zod` na saída JSON do Gemini (`tutor-orchestrator.ts`, `pronunciation.ts`).
+  - `SEC-007` (Média): `jti` + revogação server-side de sessões via `user_sessions` no Neon e cache de revogação no logout e `DELETE /api/privacy`.
+  - `SEC-009` (Baixa): Audit logging estruturado (`src/lib/security/audit-log.ts`) sem vazar senhas, cookies ou tokens.
+- **Suíte de regressão criada:** `tests/security/security-regression.test.ts` (6 testes).
+- **Decisão de Release:** `RELEASE WITH CONDITIONS` após merge/deploy desta branch + rotação preventiva da `GEMINI_API_KEY` (enviada em texto claro no chat).
+
 ## Riscos Residuais & Próximos Passos
 - Rate limiting atual é em memória por instância serverless; em escala maior, migrar para Redis/Upstash.
 - Expandir banco de conteúdo com pacotes completos das Semanas 5–16 e camada de Peer Exchange / Tutor Humano.

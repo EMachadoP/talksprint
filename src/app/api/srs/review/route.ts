@@ -8,9 +8,10 @@ import {
   computeMutScore,
   computePriorityScore,
 } from "@/lib/domain/adaptive-engine";
+import { verifyCsrfOrigin } from "@/lib/security/csrf";
 
 const reviewSchema = z.object({
-  nodeId: z.string().min(1),
+  nodeId: z.string().min(1).max(80),
   correct: z.boolean(),
   responseTimeMs: z.number().min(100).max(120_000),
   usedHint: z.boolean(),
@@ -18,6 +19,19 @@ const reviewSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const csrf = verifyCsrfOrigin(req);
+  if (!csrf.ok) {
+    return NextResponse.json({ error: "Requisição cross-site bloqueada." }, { status: 403 });
+  }
+
+  const session = await getCurrentSession(req);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Autenticação obrigatória para registrar revisão SRS." },
+      { status: 401 }
+    );
+  }
+
   try {
     const json = await req.json();
     const parsed = reviewSchema.safeParse(json);
@@ -28,8 +42,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const session = await getCurrentSession();
-    const learner = await loadLearner(session?.pseudonymId);
+    const learner = await loadLearner(session.pseudonymId);
     const idx = learner.nodes.findIndex((n) => n.id === parsed.data.nodeId);
     if (idx === -1) {
       return NextResponse.json({ error: "Item não encontrado." }, { status: 404 });
@@ -65,7 +78,7 @@ export async function POST(req: Request) {
         nodes: nextNodes,
         events: [...learner.events, reviewEvent],
       },
-      session?.pseudonymId
+      session.pseudonymId
     );
 
     return NextResponse.json({

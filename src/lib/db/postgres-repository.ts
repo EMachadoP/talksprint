@@ -21,11 +21,40 @@ export function getPgPool(): Pool {
   if (!poolInstance) {
     poolInstance = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
+      ssl: { rejectUnauthorized: true },
       max: 5,
     });
   }
   return poolInstance;
+}
+
+export async function pgCreateSession(params: {
+  tokenHash: string;
+  userId: string;
+  pseudonymId: string;
+  expiresAt: Date;
+}): Promise<void> {
+  const pool = getPgPool();
+  await pool.query(
+    `INSERT INTO user_sessions (token_hash, user_id, pseudonym_id, expires_at)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (token_hash) DO NOTHING`,
+    [params.tokenHash, params.userId, params.pseudonymId, params.expiresAt.toISOString()]
+  );
+}
+
+export async function pgIsSessionActive(tokenHash: string): Promise<boolean> {
+  const pool = getPgPool();
+  const res = await pool.query(
+    `SELECT 1 FROM user_sessions WHERE token_hash = $1 AND expires_at > NOW() LIMIT 1`,
+    [tokenHash]
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+export async function pgRevokeSession(tokenHash: string): Promise<void> {
+  const pool = getPgPool();
+  await pool.query(`DELETE FROM user_sessions WHERE token_hash = $1`, [tokenHash]);
 }
 
 export interface UserAccountRow {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { evaluatePlacement } from "@/lib/domain/placement";
 import { loadLearner, persistLearner } from "@/lib/db/repository";
 import { getCurrentSession } from "@/lib/auth/session";
+import { verifyCsrfOrigin } from "@/lib/security/csrf";
 
 const onboardingSchema = z.object({
   displayName: z.string().trim().min(1).max(80),
@@ -30,6 +31,19 @@ const onboardingSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const csrf = verifyCsrfOrigin(req);
+  if (!csrf.ok) {
+    return NextResponse.json({ error: "Requisição cross-site bloqueada." }, { status: 403 });
+  }
+
+  const session = await getCurrentSession(req);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Crie uma conta ou faça login antes de salvar seu Placement." },
+      { status: 401 }
+    );
+  }
+
   try {
     const json = await req.json();
     const parsed = onboardingSchema.safeParse(json);
@@ -40,9 +54,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const session = await getCurrentSession();
     const placement = evaluatePlacement(parsed.data);
-    const current = await loadLearner(session?.pseudonymId);
+    const current = await loadLearner(session.pseudonymId);
 
     const updated = await persistLearner(
       {
@@ -59,7 +72,7 @@ export async function POST(req: Request) {
         diagnosedPhoneticTargets: placement.diagnosedPhoneticTargets,
         currentWeek: 1,
       },
-      session?.pseudonymId
+      session.pseudonymId
     );
 
     return NextResponse.json({
